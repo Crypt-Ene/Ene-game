@@ -19,8 +19,17 @@ DamageHealed = False
 class Player(pygame.sprite.Sprite):
     def __init__(self, startx, starty):
         pygame.sprite.Sprite.__init__(self)
-
-        self.image = pygame.image.load("images\ene-float-1.png")
+        while True:
+            ColorScheme = str(input("Red or Blue?"))
+            if ColorScheme == "Red":
+                ColorScheme = "Red-"
+                break
+            elif ColorScheme == "Blue":
+                ColorScheme = ""
+                break
+            else:
+                print("Try Again")
+        self.image = pygame.image.load(f"images\{ColorScheme}ene-float-1.png")
         self.rect = self.image.get_rect()
         self.rect = self.rect.inflate(-5, -5)
         self.rect.center = [(startx), starty]
@@ -28,7 +37,7 @@ class Player(pygame.sprite.Sprite):
         self.speed = 4
         self.jumpspeed = 12
         self.gravity = 0.5
-        self.animation_cycle = [pygame.image.load(f"images\ene-float-{i}.png") for i in range(1,4,1)]
+        self.animation_cycle = [pygame.image.load(f"images\{ColorScheme}ene-float-{i}.png") for i in range(1,4,1)]
         self.animation_index = 0
         self.animation_tick = 0
         self.facing_left = False
@@ -196,11 +205,6 @@ class FloorTile(pygame.sprite.Sprite):
     def update(self):
 
         self.rect.move_ip([-CameraX, 0])
-
-class Enemy1(pygame.sprite.Sprite):
-    def __init__(self, startx, starty):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.image.load()
 
 def Gameover():
     global running, gameover
