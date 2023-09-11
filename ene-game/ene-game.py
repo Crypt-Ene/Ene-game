@@ -1,11 +1,16 @@
 import pygame
 import numpy
+import os
+
+path = __file__
+path = path.replace("ene-game.py", "")
+os.chdir(path)
 
 #variables
 ScreenWidth = 800
 ScreenHeight = 600
+global CameraX, WorldPositionX, PlayerHealth, DamageTaken, DamageHealed, gameon, running, gameover, directory
 BackgroundImage = pygame.image.load("images\Background.png")
-global CameraX, WorldPositionX, PlayerHealth, DamageTaken, DamageHealed, gameon, running, gameover
 gameon = True
 running = False 
 gameover = False
@@ -34,20 +39,23 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.rect.inflate(-5, -5)
         self.rect.center = [(startx), starty]
         self.prevkey = pygame.key.get_pressed()
-        self.speed = 4
+        self.speed = 0.75
+        self.minspeed = -8
+        self.maxspeed = 8
         self.jumpspeed = 12
         self.gravity = 0.5
         self.animation_cycle = [pygame.image.load(f"images\{ColorScheme}ene-float-{i}.png") for i in range(1,4,1)]
         self.animation_index = 0
         self.animation_tick = 0
         self.facing_left = False
+        self.h_momentum = 0
         self.v_momentum = 0
         self.doublejump = True
         self.doublejumptick = 0
         self.safepointx = startx
         self.safepointy = starty
 
-    def check_damage(self):
+    def check_fall(self):
         if self.rect.y > 600:
             global PlayerHealth, DamageTaken
             if PlayerHealth == 1:
@@ -55,14 +63,14 @@ class Player(pygame.sprite.Sprite):
                 return
             global CameraX, WorldPositionX
             CameraX = self.safepointx - WorldPositionX
-            all_objects.update()
+            objects.update()
             WorldPositionX = self.safepointx
             self.rect.y = self.safepointy
             DamageTaken = True
 
-    def check_collision(self, x, y, all_objects):
+    def check_collision(self, x, y, objects):
         self.rect.move_ip([x, y])
-        collide = pygame.sprite.spritecollideany(self, all_objects)
+        collide = pygame.sprite.spritecollideany(self, objects)
         self.rect.move_ip([-x,-y])
         return collide
 
@@ -80,22 +88,30 @@ class Player(pygame.sprite.Sprite):
         else:
             self.animation_tick += 1
 
-    def update(self, all_objects):
+    def update(self, objects):
         self.player_animation()
         key = pygame.key.get_pressed()
-        self.check_damage()
-        self.h_momentum = 0
-        onground = self.check_collision(0, 1, all_objects)
+        self.check_fall()
+        onground = self.check_collision(0, 1, objects)
+
+        if numpy.sign(self.h_momentum) != 0:
+            speedtype = numpy.sign(self.h_momentum)
+            if speedtype > 0:
+                self.h_momentum += -(self.speed/2)
+            else:
+                self.h_momentum += (self.speed/2)
 
         if self.doublejumptick > 0:
             self.doublejumptick -= 1
 
         if key[pygame.K_LEFT] and not key[pygame.K_RIGHT]:
-            self.h_momentum = -self.speed
+            if self.h_momentum > self.minspeed:
+                self.h_momentum += -self.speed
             self.facing_left = True
 
         elif key[pygame.K_RIGHT] and not key[pygame.K_LEFT]:
-            self.h_momentum = self.speed
+            if self.h_momentum < self.maxspeed:
+                self.h_momentum += self.speed
             self.facing_left = False
 
         if onground:
@@ -116,15 +132,16 @@ class Player(pygame.sprite.Sprite):
         if self.v_momentum < 10 and not onground:
             self.v_momentum += self.gravity
 
-        self.move(self.h_momentum, self.v_momentum, all_objects)
+        self.move(self.h_momentum, self.v_momentum, objects)
 
-    def move(self, x, y, all_objects):
+    def move(self, x, y, objects):
         dx = x
         dy = y
-
-        while self.check_collision(0, dy, all_objects):
+        i = 0
+        while self.check_collision(0, dy, objects) and i < (self.speed + self. jumpspeed):
             dy -= numpy.sign(dy)
-        while self.check_collision(dx, 0, all_objects):
+
+        while self.check_collision(dx, 0, objects) and i < (self.speed + self. jumpspeed):
             dx -= numpy.sign(dx)
 
         global CameraX, WorldPositionX
@@ -203,14 +220,15 @@ class FloorTile(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = [(startx), starty]
     def update(self):
-
+        self.rect.move_ip([-CameraX, 0])
+        
+    def update(self):
         self.rect.move_ip([-CameraX, 0])
 
 def Gameover():
     global running, gameover
     running = False
     gameover = True
-
 
 def main():
     icon = pygame.image.load("images\ene-health-full.png")
@@ -219,25 +237,23 @@ def main():
     screen = pygame.display.set_mode((ScreenWidth, ScreenHeight))
     Gameoverimage = pygame.image.load("images\Gameover-screen.png").convert_alpha()
     clock = pygame.time.Clock()
-    global all_objects, player_sprites
-    all_objects = pygame.sprite.Group()
+    global objects, player_sprites
+    objects = pygame.sprite.Group()
+    enemys = pygame.sprite.Group()
     player_sprites = pygame.sprite.Group()
 
     player = Player((ScreenWidth / 2) - 35, 0)
-
     health1 = Health1(35, 30)
-    player_sprites.add(health1)
     health2 = Health2(95, 30)
-    player_sprites.add(health2)
     health3 = Health3(155, 30)
-    player_sprites.add(health3)
+    player_sprites.add(health1, health2, health3)
 
     for i in range(0, 1050, 100):
         floor = FloorTile((i), 530)
-        all_objects.add(floor)
+        objects.add(floor)
 
     floor = FloorTile(200, 300)
-    all_objects.add(floor)
+    objects.add(floor)
 
     #gameloop
     global gameon, running
@@ -249,9 +265,10 @@ def main():
         global gameover
         while running:
             pygame.event.pump()
-            player.update(all_objects)
+            player.update(objects)
+            enemys.update()
+            objects.update()
             player_sprites.update()
-            all_objects.update()
             for event in pygame.event.get():
 
                 if event.type == pygame.QUIT:
@@ -264,9 +281,10 @@ def main():
                         gameon = False
 
             screen.blit(BackgroundImage, (0, 0))
+            enemys.draw(screen)
             player.draw(screen)
+            objects.draw(screen)
             player_sprites.draw(screen)
-            all_objects.draw(screen)
             pygame.display.flip()
             clock.tick(60)
         if gameover == True:
