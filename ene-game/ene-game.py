@@ -1,5 +1,6 @@
 import pygame
 import numpy
+import random
 import os
 
 path = __file__
@@ -19,32 +20,31 @@ WorldPositionX = 0
 PlayerHealth = 3
 DamageTaken = False
 DamageHealed = False
+coloroptions = ["Blue", "Red", "Green", "Yellow", "Purple"]
 
 #sprites        
 class Player(pygame.sprite.Sprite):
     def __init__(self, startx, starty):
         pygame.sprite.Sprite.__init__(self)
         while True:
-            ColorScheme = str(input("Red or Blue?"))
-            if ColorScheme == "Red":
-                ColorScheme = "Red-"
-                break
-            elif ColorScheme == "Blue":
-                ColorScheme = ""
+            self.ColorScheme = str(input("What color sprite?"))
+            if self.ColorScheme in coloroptions:
+                self.ColorScheme = self.ColorScheme + "-"
                 break
             else:
                 print("Try Again")
-        self.image = pygame.image.load(f"images\{ColorScheme}ene-float-1.png")
+        self.image = pygame.image.load(f"images\{self.ColorScheme}ene-float-1.png")
         self.rect = self.image.get_rect()
         self.rect = self.rect.inflate(-5, -5)
         self.rect.center = [(startx), starty]
+        self.imagelist = [(pygame.image.load(f"images\{self.ColorScheme}ene-float-1.png")), (pygame.image.load(f"images\{self.ColorScheme}ene-float-2.png"))]
+        self.currentframe = 0
         self.prevkey = pygame.key.get_pressed()
         self.speed = 0.75
         self.minspeed = -8
         self.maxspeed = 8
         self.jumpspeed = 12
         self.gravity = 0.5
-        self.animation_cycle = [pygame.image.load(f"images\{ColorScheme}ene-float-{i}.png") for i in range(1,4,1)]
         self.animation_index = 0
         self.animation_tick = 0
         self.facing_left = False
@@ -75,15 +75,18 @@ class Player(pygame.sprite.Sprite):
         return collide
 
     def player_animation(self):
-        self.image = self.animation_cycle[self.animation_index]
+        self.image = self.imagelist[self.currentframe]
         if self.facing_left == True:
             self.image = pygame.transform.flip(self.image, True, False)
 
-        if self.animation_tick == 20:
+        if self.animation_tick == 40:
             self.animation_tick = 0
-            if self.animation_index < len(self.animation_cycle)-1:
-                self.animation_index += 1
+            if self.animation_index == 0:
+                self.currentframe = 0
+                self.animation_index = 1
             else:
+                self.currentframe = 1
+                self.animation_tick = -20
                 self.animation_index = 0
         else:
             self.animation_tick += 1
@@ -138,12 +141,14 @@ class Player(pygame.sprite.Sprite):
         dx = x
         dy = y
         i = 0
-        while self.check_collision(0, dy, objects) and i < (self.speed + self. jumpspeed):
+        while self.check_collision(0, dy, objects) and i < (20):
             dy -= numpy.sign(dy)
-
-        while self.check_collision(dx, 0, objects) and i < (self.speed + self. jumpspeed):
+            i += 1
+        i = 0
+        while self.check_collision(dx, 0, objects) and i < (20):
             dx -= numpy.sign(dx)
-
+            i += 1
+        i = 0
         global CameraX, WorldPositionX
         CameraX = dx
         WorldPositionX += dx
@@ -248,12 +253,32 @@ def main():
     health3 = Health3(155, 30)
     player_sprites.add(health1, health2, health3)
 
+    font = pygame.font.Font('freesansbold.ttf', 32)
+    score = 0
+    Scoredisplay = font.render(str(score), True, (0, 0, 0))
+    scoreloc = Scoredisplay.get_rect()
+    scoreloc.topright = (760, 30)
+    scoreend = Scoredisplay.get_rect()
+    scoreend.center = (30, 30)
+
     for i in range(0, 1050, 100):
         floor = FloorTile((i), 530)
         objects.add(floor)
 
-    floor = FloorTile(200, 300)
-    objects.add(floor)
+    floorrand = 0
+    jumpnum = 0
+    lastfloorx = 1000
+    lastfloory = 530
+    while jumpnum < 500:
+        jumpnum += 1
+        floorrand = random.randint(250, 600)
+        floorrandy = random.randint(0, 300)
+        if (numpy.sqrt((floorrandy - lastfloory) * (floorrandy - lastfloory))) > 200:
+            floorrandy = 200
+        lastfloory = floorrandy
+        lastfloorx += floorrand
+        floor = FloorTile(lastfloorx, 530 - floorrandy)
+        objects.add(floor)
 
     #gameloop
     global gameon, running
@@ -269,6 +294,8 @@ def main():
             enemys.update()
             objects.update()
             player_sprites.update()
+            score = max(round(WorldPositionX / 100), score)
+            Scoredisplay = font.render(str(score), True, (0, 0, 0))
             for event in pygame.event.get():
 
                 if event.type == pygame.QUIT:
@@ -285,6 +312,7 @@ def main():
             player.draw(screen)
             objects.draw(screen)
             player_sprites.draw(screen)
+            screen.blit(Scoredisplay, scoreloc)
             pygame.display.flip()
             clock.tick(60)
         if gameover == True:
@@ -309,6 +337,7 @@ def main():
             
             Gameoverimage.set_alpha(alpha)
             screen.blit(Gameoverimage, (0, 0))
+            screen.blit(Scoredisplay, scoreend)
             pygame.display.flip()
             clock.tick(60)
 
