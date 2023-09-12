@@ -27,7 +27,8 @@ class Player(pygame.sprite.Sprite):
     def __init__(self, startx, starty):
         pygame.sprite.Sprite.__init__(self)
         while True:
-            self.ColorScheme = str(input("What color sprite?"))
+            self.ColorScheme = str(input("What color, Blue, Red, Green, Yellow or Purple: "))
+            self.ColorScheme = self.ColorScheme.capitalize()
             if self.ColorScheme in coloroptions:
                 self.ColorScheme = self.ColorScheme + "-"
                 break
@@ -63,10 +64,11 @@ class Player(pygame.sprite.Sprite):
                 return
             global CameraX, WorldPositionX
             CameraX = self.safepointx - WorldPositionX
-            objects.update()
+            objects.update(self)
             WorldPositionX = self.safepointx
             self.rect.y = self.safepointy
             DamageTaken = True
+            self.h_momentum = 0
 
     def check_collision(self, x, y, objects):
         self.rect.move_ip([x, y])
@@ -224,10 +226,14 @@ class FloorTile(pygame.sprite.Sprite):
         self.image = pygame.image.load("images\Floor.png")
         self.rect = self.image.get_rect()
         self.rect.center = [(startx), starty]
-    def update(self):
-        self.rect.move_ip([-CameraX, 0])
-        
-    def update(self):
+        self.immune = True
+
+    def update(self, player):
+        self.distance = (player.rect.x - self.rect.x)
+        if self.distance < 2000 and self.distance > -2000:
+            self.immune = False
+        if self.distance > 4000 or self.distance < -10000 and not self.immune:
+            self.kill()
         self.rect.move_ip([-CameraX, 0])
 
 def Gameover():
@@ -261,24 +267,18 @@ def main():
     scoreend = Scoredisplay.get_rect()
     scoreend.center = (30, 30)
 
+    floor1 = FloorTile((-50), 530)
+    objects.add(floor1)
+
     for i in range(0, 1050, 100):
         floor = FloorTile((i), 530)
         objects.add(floor)
 
     floorrand = 0
-    jumpnum = 0
-    lastfloorx = 1000
+    floorrandy = 0
     lastfloory = 530
-    while jumpnum < 500:
-        jumpnum += 1
-        floorrand = random.randint(250, 600)
-        floorrandy = random.randint(0, 300)
-        if (numpy.sqrt((floorrandy - lastfloory) * (floorrandy - lastfloory))) > 200:
-            floorrandy = 200
-        lastfloory = floorrandy
-        lastfloorx += floorrand
-        floor = FloorTile(lastfloorx, 530 - floorrandy)
-        objects.add(floor)
+    floorpos = 0
+    nbt = 0
 
     #gameloop
     global gameon, running
@@ -292,10 +292,20 @@ def main():
             pygame.event.pump()
             player.update(objects)
             enemys.update()
-            objects.update()
+            objects.update(player)
             player_sprites.update()
             score = max(round(WorldPositionX / 100), score)
             Scoredisplay = font.render(str(score), True, (0, 0, 0))
+
+            if (WorldPositionX) > nbt:
+                floorrand = random.randint(250, 400)
+                floorrandy = random.randint(250, 550)
+                floorpos = floorrand + 1000
+                floor = FloorTile(floorpos, floorrandy)
+                nbt += floorrand
+                objects.add(floor)
+
+
             for event in pygame.event.get():
 
                 if event.type == pygame.QUIT:
