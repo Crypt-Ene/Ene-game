@@ -1,0 +1,2 @@
+to run the game go into the dist folder then into the ene-game folder in that. open the file called "ene-game" and a command line should open prompting you to choose a color, these are just different colorings of ene.
+once you select a color and press enter the game window will open, use the arrow keys and the space bar to move, the game is just an infinite platformer, you can double jump and you get 3 lives that are displayed in the top left along with your current score.
